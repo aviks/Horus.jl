@@ -5,8 +5,13 @@
 
 Simple background jobs for Julia, backed by Redis. 
 
-Horus.jl is a package for creating background jobs, placing them on queues, and running them asynchronously. 
+Horus.jl is a package for creating and running background jobs in Julia
+
+This package is similar to, and somewhat inspired by Sidekiq, Resque (both Ruby) and Celery (Python). However, it is currently much simpler than any of those libraries. 
 
 ---
 
 🚨 Please read the documentation carefully before using this package, particularly the section that describes what the design guarantees are. 
+
+--- 
+Horus is the ancient Egyptian god of kingship, protection, healing and the sky. 

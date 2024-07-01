@@ -7,6 +7,7 @@ using Dates
 
 export HorusClientConfig, HorusServerConfig, HorusJob, start_runner
 export enqueue, execute
+using Random
 
 abstract type HorusConfig; end
 
@@ -64,8 +65,19 @@ function enqueue(conn::RedisConnection, payload::String, queue)
    lpush(conn, queue, payload)
 end
 
+"""
+`fetch(cfg::HorusServerConfig)`
+
+Fetches a job from Redis using the connection and queues from the supplied config. 
+Uses brpop to fetch from the queue, and returns the redis result. 
+
+Since `brpop` searches the queues in the order they are passed in, 
+the queues are shuffled for each call to prevent exhaustion.  
+
+If all the queues are empty, this function will block for TIMEOUT seconds
+"""
 function fetch(cfg::HorusServerConfig)
-   fetch(cfg.backend, cfg.queues)
+   fetch(cfg.backend, shuffle(cfg.queues))
 end
 
 global TIMEOUT = 2
@@ -91,10 +103,11 @@ Start a runner process, and block indefinitely
 """
 function start_runner(cfg)
    while true
-      job = fetch_job(cfg)
-      if job === nothing
+      redisjob = fetch(cfg)
+      if redisjob === nothing
          continue
       end
+      job = JSON3.read(redisjob[2])
       run_job(cfg, job)
    end
 end
@@ -124,8 +137,13 @@ function run_job(cfg, jobjson)
    @info "[Horus] Processing $job"
    try 
       execute(job)
-   catch (ex) 
-      @error "[Horus] Exception processing $job." exception=ex
+   catch (ex)
+      # Ensure that the log has the location of where the exception was thrown, not this place
+      bt = catch_backtrace()
+      st = stacktrace(bt)
+      line = st[1].line
+      file = string(st[1].file) 
+      @error "[Horus] Exception processing $job." exception=ex _line=line _file=file
    end
 end
 
