@@ -10,14 +10,18 @@ export enqueue, execute
 
 abstract type HorusConfig; end
 
-## Configuration for a Client
+"""
+Configuration for a Client
+"""
 struct HorusClientConfig <: HorusConfig
    backend::Any
 end
 
 HorusClientConfig() = HorusClientConfig(RedisConnection())
 
-## Configuration for a JobRunner
+"""
+Configuration for a Sever/JobRunner
+"""
 struct HorusServerConfig
    backend::Any
    queues::Vector{String}
@@ -26,10 +30,17 @@ end
 
 HorusServerConfig(backend=RedisConnection(), queues=["default"]; opts...) = HorusServerConfig(backend, queues, convert(Dict{Symbol, Any}, opts))
 
-## All jobs should be subtypes of HorusJob
+"""
+All jobs should be subtypes of HorusJob
+"""
 abstract type HorusJob; end
 
-## Enqueue a job. Inputs are the type that represents that job, and the arguments
+"""
+
+`enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::AbstractString="default", meta...) where T<: HorusJob`
+
+Enqueue a job. Inputs are the type that represents that job, and the arguments
+"""
 function enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::AbstractString="default", meta...) where T<: HorusJob
    data = convert(Dict{Symbol, Any}, meta)
    data[:typename] =  string(typename)
@@ -41,9 +52,14 @@ function enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::Abst
    enqueue(cfg.backend, JSON3.write(data), queue)
 end
 
-## Enqueue a job given a json string representation. 
-## This method is very low level, and does no validation that the json 
-##     is syntactically or semantically correct. End users should not use this. 
+"""
+   `enqueue(conn::RedisConnection, payload::String, queue)`
+
+Enqueue a job given a json string representation. 
+
+This method is very low level, and does not validation that the json is syntactically or 
+semantically correct. End users should not use this. 
+"""
 function enqueue(conn::RedisConnection, payload::String, queue)
    lpush(conn, queue, payload)
 end
@@ -58,11 +74,21 @@ function fetch(conn::RedisConnection, queues)
    brpop(conn, queues, TIMEOUT)
 end
 
+"""
+`start_runner()``
+
+Start a runner process, with a default RedisConnection talking to localhost
+"""
 function start_runner()
    cfg = HorusServerConfig(RedisConnection(), ["default"], Dict{Symbol, Any}())
    start_runner(cfg)
 end
 
+"""
+`start_runner(cfg)`
+
+Start a runner process, and block indefinitely
+"""
 function start_runner(cfg)
    while true
       job = fetch_job(cfg)
@@ -73,7 +99,11 @@ function start_runner(cfg)
    end
 end
 
-## Fetches a job from Redis, and returns it as a dict
+"""
+`fetch_job(cfg::HorusServerConfig)`
+
+Fetches a job from Redis, and returns it as a json object (Dict)
+"""
 function fetch_job(cfg)
    jobfetch = fetch(cfg)
    if jobfetch === nothing
@@ -82,6 +112,11 @@ function fetch_job(cfg)
    return JSON3.read(jobfetch[2])
 end
 
+"""
+`run_job(cfg::HorusServerConfig, jobjson::String)`
+
+Run a job, given a job definiton as a json object
+"""
 function run_job(cfg, jobjson)
    modulename = getproperty(Main, Symbol(get(jobjson, "modulename", "Main")))
    jobtype = getproperty(modulename, Symbol(jobjson[:typename]))

@@ -7,4 +7,6 @@ Simple background jobs for Julia, backed by Redis.
 
 Horus.jl is a package for creating background jobs, placing them on queues, and running them asynchronously. 
 
-Please read the documentation carefully before using this package, particularly the sections describes which design guarantees are provided, and which are not. 
+---
+
+🚨 Please read the documentation carefully before using this package, particularly the section that describes what the design guarantees are. 
