@@ -29,7 +29,7 @@ struct HorusServerConfig
    opts::Dict{Symbol, Any}
 end
 
-HorusServerConfig(backend=RedisConnection(), queues=["default"]; opts...) = HorusServerConfig(backend, queues, convert(Dict{Symbol, Any}, opts))
+HorusServerConfig(backend=RedisConnection(), queues=["horus_default"]; opts...) = HorusServerConfig(backend, queues, convert(Dict{Symbol, Any}, opts))
 
 """
 All jobs should be subtypes of HorusJob
@@ -122,19 +122,6 @@ function start_runner(cfg)
       job = JSON3.read(redisjob[2])
       run_job(cfg, job)
    end
-end
-
-"""
-`fetch_job(cfg::HorusServerConfig)`
-
-Fetches a job from Redis, and returns it as a json object (Dict)
-"""
-function fetch_job(cfg)
-   jobfetch = fetch(cfg)
-   if jobfetch === nothing
-      return nothing
-   end
-   return JSON3.read(jobfetch[2])
 end
 
 """

@@ -1,6 +1,7 @@
 using Horus
 using Test
 using Redis
+using JSON3
 
 global x = 1
 struct TestJob1 <:HorusJob
@@ -20,6 +21,8 @@ end
     Horus.enqueue(conf, TestJob1, 1)
 
     sconf = Horus.HorusServerConfig(conn)
-    Horus.run_job(sconf, Horus.fetch_job(sconf))
+    redisjob = Horus.fetch(sconf)
+    job = JSON3.read(redisjob[2])
+    Horus.run_job(sconf, job)
     @test x == 2
 end
