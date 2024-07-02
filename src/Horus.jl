@@ -42,7 +42,7 @@ abstract type HorusJob; end
 
 Enqueue a job. Inputs are the type that represents that job, and the arguments
 """
-function enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::AbstractString="default", meta...) where T<: HorusJob
+function enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::AbstractString="horus_default", meta...) where T<: HorusJob
    data = convert(Dict{Symbol, Any}, meta)
    data[:typename] =  string(typename)
    data[:modulename] = string(parentmodule(typename))
@@ -54,11 +54,23 @@ function enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::Abst
 end
 
 """
+   `enqueue(conn::RedisConnection, payload)`
+
+Enqueue a job given a json object representation. 
+`payload` is converted to a string using `JSON3.write`, and queue is picked from the payload itself. 
+
+This method is low level, and does not validate that the payload is semantically correct. Use with care. 
+"""
+function enqueue(conn::RedisConnection, payload)
+   enqueue(cfg.backend, JSON3.write(payload), payload[:queue])
+end
+
+"""
    `enqueue(conn::RedisConnection, payload::String, queue)`
 
 Enqueue a job given a json string representation. 
 
-This method is very low level, and does not validation that the json is syntactically or 
+This method is very low level, and does not validate that the json is syntactically or 
 semantically correct. End users should not use this. 
 """
 function enqueue(conn::RedisConnection, payload::String, queue)
