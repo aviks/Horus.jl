@@ -94,14 +94,14 @@ start_runner(sconf) ## will block indefinitely.
 
 * Runners can be simple, single threaded code. To increase throughput, runners can be scaled horizontally, fetching from the same queue. 
 
-* When multiple runners are be launched simultaneosly against a queue, a job *will* only be made available to a single runner. A single job will never be fetched by two or more runners. 
+* When multiple runners are be launched simultaneously against a queue, a job will *only* be made available to a single runner. A single job will never be fetched by two or more runners. 
 
-* The execution of the job will be protected by a try/catch -- thus logic errors or bugs in the job execution code will not bring down a runner. 
+* The execution of the job will be protected by a try/catch -- thus logic errors or bugs in the job execution code will not bring down a runner.
 
-* However, there is always the possibility of the runner process crashing when executing a job. While the server will attempt to record this fact in Redis, that cannot be currently guaranteed. This should be apparent from the logs, including which job it was running when it crashed. This allows you to manually retry that job if needed. While this should be a rare occurance (and this architecture itself has been validated in similar libraries in other languages), in practice this means that any production use of this package should provide for log aggregation and monitoring. We hope this is not a major lift these days. 
-
+* However, there is always the possibility of the runner process crashing when executing a job. The server will attempt to record this fact in Redis, but in the current implementation doesn't give any guarantees. Logs should make the information about crashed workers apparent, including which job it was running when it crashed. This behavior allows you to manually retry that job if needed. While this should be a rare occurance (and this architecture itself has been validated in similar libraries in other languages), in practice this means that any production use of this package should provide for log aggregation and monitoring. We hope this is not a major lift these days.
 
 ## TODO 
 
 * Retries and dead letter queues
 * Admin web services
+* Distinguish which julia objects can be serialized through this method, and which not (e.g. can the struct include closures?)
