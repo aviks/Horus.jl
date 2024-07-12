@@ -18,7 +18,7 @@ struct HorusClientConfig <: HorusConfig
    backend::Any
 end
 
-HorusClientConfig() = HorusClientConfig(RedisConnection())
+HorusClientConfig(; host="127.0.0.1", port=6379, password="", db=0, sslconfig=nothing) = HorusClientConfig(RedisConnection(host, port, password, db, Redis.Transport.transport(host, port, sslconfig)))
 
 """
 Configuration for a Sever/JobRunner
@@ -29,7 +29,7 @@ struct HorusServerConfig
    opts::Dict{Symbol, Any}
 end
 
-HorusServerConfig(backend=RedisConnection(), queues=["horus_default"]; opts...) = HorusServerConfig(backend, queues, convert(Dict{Symbol, Any}, opts))
+HorusServerConfig(queues=["horus_default"]; host="127.0.0.1", port=6379, password="", db=0, sslconfig=nothing, opts...) = HorusServerConfig(RedisConnection(host, port, password, db, Redis.Transport.transport(host, port, sslconfig)), queues, convert(Dict{Symbol, Any}, opts))
 
 """
 All jobs should be subtypes of HorusJob
@@ -49,7 +49,8 @@ function enqueue(cfg::HorusClientConfig, typename::Type{T}, args...; queue::Abst
    data[:args] =  args
    data[:tries] =  1
    data[:posted] =  now()
-   data[:queue] = queue # This is redundant, but stored for later ease of use
+   data[:id] = incr(cfg.backend, "jobid")
+   data[:queue] = queue # While the q is passed in separately here, we store it with the job. 
    enqueue(cfg.backend, JSON3.write(data), queue)
 end
 
@@ -62,7 +63,7 @@ Enqueue a job given a json object representation.
 This method is low level, and does not validate that the payload is semantically correct. Use with care. 
 """
 function enqueue(conn::RedisConnection, payload)
-   enqueue(cfg.backend, JSON3.write(payload), payload[:queue])
+   enqueue(conn, JSON3.write(payload), payload[:queue])
 end
 
 """
@@ -108,13 +109,18 @@ function start_runner()
    start_runner(cfg)
 end
 
+global scheduler_task = nothing
 """
 `start_runner(cfg)`
 
 Start a runner process, and block indefinitely
 """
 function start_runner(cfg)
+   global scheduler_task = start_scheduler(cfg)
+   Base.atexit(handle_exit)
+   @info "[Horus] Starting runner loop"
    while true
+      yield()
       redisjob = fetch(cfg)
       if redisjob === nothing
          continue
@@ -123,6 +129,16 @@ function start_runner(cfg)
       run_job(cfg, job)
    end
 end
+
+function handle_exit(exitcode)
+   @info "Exiting, shutting down scheduler"
+   scheduler_done=false
+   sleep(POLL_INTERVAL)
+end
+
+
+
+
 
 """
 `run_job(cfg::HorusServerConfig, jobjson::String)`
@@ -133,19 +149,22 @@ function run_job(cfg, jobjson)
    modulename = getproperty(Main, Symbol(get(jobjson, "modulename", "Main")))
    jobtype = getproperty(modulename, Symbol(jobjson[:typename]))
    job = jobtype(jobjson.args...)
-   @info "[Horus] Processing $job"
+   @info "[Horus] Processing job $(jobjson[:id])"
    try 
       execute(job)
+      @info "[Horus] Successfully executed job $(jobjson[:id])"
    catch (ex)
       # Ensure that the log has the location of where the exception was thrown, not this place
       bt = catch_backtrace()
       st = stacktrace(bt)
       line = st[1].line
       file = string(st[1].file) 
-      @error "[Horus] Exception processing $job." exception=ex _line=line _file=file
+      @error "[Horus] Exception executing job $(jobjson[:id])." exception=ex _line=line _file=file
+      retry_job(cfg, jobjson, st, string(ex))
    end
 end
 
 function execute end
 
+include("schedule.jl")
 end

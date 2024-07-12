@@ -39,10 +39,9 @@ A client configuration is generated with a RedisConnection. This configuration o
 ```
 module MyPackage
     ...
-    conn = RedisConnection(;host="x.x.x.x", port=6379)
-    conf = HorusClientConfig(conn)
+    cfg = HorusClientConfig(;host="172.23.164.254", port=6379)
 
-    Horus.enqueue(conf, EmailJob, "test@example.com", 
+    Horus.enqueue(cfg, EmailJob, "test@example.com", 
                                   "A Test Email",
                                   "The body of said email"
                         ; queue = "emails"
@@ -82,11 +81,14 @@ using Horus
 using Redis
 
 conn = RedisConnection(;host="x.x.x.x", port=6379)
-sconf = HorusServerConfig(conn, ["emails"])
-start_runner(sconf) ## will block indefinitely. 
+scfg = HorusServerConfig(["emails"]; host="172.23.164.254", port=6379)
+start_runner(scfg) ## will block indefinitely. 
 
 ```
 
+Jobs that fail are sent to a retry queue, and then executed using an exponential backoff strategy. The maximum number of retries can be set on a server configuration, or within an individual job, or is 20 by default. If not set elsewhere, a maximum of 20 retries are attempted. Jobs that have failed all their allowed retries are sent to a dead letter queue for manual processing. 
+
+Jobs can also be enqueued for running at a particular time using the `enqueue_at` method. Currently, scheduled jobs are executed within an accuracy of upto 10 seconds. 
 
 ## Design & Guarantees
 
@@ -102,6 +104,7 @@ start_runner(sconf) ## will block indefinitely.
 
 ## TODO 
 
-* Retries and dead letter queues
 * Admin web services
-* Distinguish which julia objects can be serialized through this method, and which not (e.g. can the struct include closures?)
+* on_exit behaviour
+* OpenTelemetry support
+* Document which julia objects can be serialized through this method, and which not

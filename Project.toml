@@ -1,7 +1,7 @@
 name = "Horus"
 uuid = "bc501ac0-6d4c-4855-b16f-b0e03415614f"
 authors = ["Avik Sengupta <avik@sengupta.net> and contributors"]
-version = "0.1.1"
+version = "1.0.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
