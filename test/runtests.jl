@@ -15,7 +15,7 @@ end
 #This test assumes redis running on localhost
 @testset "Horus.jl" begin
     redishost = "localhost"
-    redishost = "172.23.164.254"
+    #redishost = "172.23.164.254"
     conf = Horus.HorusClientConfig(;host=redishost, port=6379)
 
     Horus.enqueue(conf, TestJob1, 1)
