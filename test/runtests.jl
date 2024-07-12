@@ -14,13 +14,13 @@ end
 
 #This test assumes redis running on localhost
 @testset "Horus.jl" begin
-    #conn = RedisConnection(;host="172.23.164.254", port=6379)
-    conn = RedisConnection(;host="127.0.0.1", port=6379)
-    conf = Horus.HorusClientConfig(conn)
+    redishost = "localhost"
+    redishost = "172.23.164.254"
+    conf = Horus.HorusClientConfig(;host=redishost, port=6379)
 
     Horus.enqueue(conf, TestJob1, 1)
 
-    sconf = Horus.HorusServerConfig(conn)
+    sconf = Horus.HorusServerConfig(;host=redishost, port=6379)
     redisjob = Horus.fetch(sconf)
     job = JSON3.read(redisjob[2])
     Horus.run_job(sconf, job)
